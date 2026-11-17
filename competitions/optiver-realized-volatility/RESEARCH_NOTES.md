@@ -8,6 +8,14 @@
 
 Notre validation a cinq plis par `time_id` sur 3 064 fenêtres (343 145 lignes), puis un holdout de 766 fenêtres (85 787 lignes), soit 3 830 fenêtres. Les actions d'une même fenêtre restent ensemble. Les poids du mélange sont choisis sans consulter la cible holdout. Cette validation aléatoire par fenêtre ne garantit pas le même résultat sur la période privée future.
 
+## Architecture et décision finale
+
+![Schéma du GRU, des nouvelles features et du mélange](schema-gru-optiver.svg)
+
+Le schéma sépare les éléments **confirmés** (séquence de 60 pas × 8 canaux, famille de features, cinq plis de validation, prédictions GRU/LightGBM, poids du mélange et checkpoints GRU) des détails **non retrouvés** dans le code du GRU final. Une représentation de la trajectoire est combinée avec les variables tabulaires avant la prédiction de volatilité future par action. La métrique de comparaison est la RMSPE. La structure précise de la tête de sortie, l'activation finale, la loss d'entraînement, l'optimiseur et son learning rate ne peuvent pas être déduits des seuls scores et noms de checkpoints.
+
+Un ancien modèle archivé possède une tête à six sorties et emploie AdamW, mais **ce n'est pas une preuve que le GRU + FE à 0,196240 utilise la même tête ou le même optimiseur**. Le seul poids de combinaison final établi par reproduction exacte est celui du LightGBM : `0.38753884496731694` (GRU : `0.6124611550326831`).
+
 ## L'edge principal
 
 **Représenter chaque action et chaque fenêtre par ses analogues de marché observables.** Les seules statistiques de l'action sur ses 600 secondes, même données à un GRU, ne décrivaient pas assez bien son état relatif. La solution gagnante cherchait des voisins de `time_id` par profils de prix reconstitués, de volatilité et de volumes, ainsi que des voisins entre actions. Pour chaque ligne, elle agrégeait la **volatilité déjà observée** et l'activité de ces voisins, avec plusieurs tailles de voisinage, puis ajoutait des rangs et des rapports entre l'action et ses analogues. Aucun target futur d'un voisin n'entre dans ces variables d'inférence.
