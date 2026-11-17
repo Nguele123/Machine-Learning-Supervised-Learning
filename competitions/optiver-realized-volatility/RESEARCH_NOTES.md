@@ -8,6 +8,14 @@
 
 Notre validation a cinq plis par `time_id` sur 3 064 fenêtres (343 145 lignes), puis un holdout de 766 fenêtres (85 787 lignes), soit 3 830 fenêtres. Les actions d'une même fenêtre restent ensemble. Les poids du mélange sont choisis sans consulter la cible holdout. Cette validation aléatoire par fenêtre ne garantit pas le même résultat sur la période privée future.
 
+## L'edge principal
+
+**Représenter chaque action et chaque fenêtre par ses analogues de marché observables.** Les seules statistiques de l'action sur ses 600 secondes, même données à un GRU, ne décrivaient pas assez bien son état relatif. La solution gagnante cherchait des voisins de `time_id` par profils de prix reconstitués, de volatilité et de volumes, ainsi que des voisins entre actions. Pour chaque ligne, elle agrégeait la **volatilité déjà observée** et l'activité de ces voisins, avec plusieurs tailles de voisinage, puis ajoutait des rangs et des rapports entre l'action et ses analogues. Aucun target futur d'un voisin n'entre dans ces variables d'inférence.
+
+**C'est cette information conditionnelle qui a brisé notre plafond.** Sur les 112 actions, l'ancien GRU seul donnait 0,209191 OOF / 0,212829 holdout ; le GRU réentraîné avec les nouvelles features atteint **0,193569 / 0,196240**, soit un gain de **0,015622 OOF et 0,016589 holdout**. Le nouveau LightGBM ajoute une erreur différente, d'où le mélange à **0,191787 / 0,195591**. Une ablation des voisins/rangs sur deux plis réentraînés dégrade le GRU de 0,011291 et 0,005457, ce qui confirme que la famille porte un signal essentiel, sans attribuer tout le gain à une seule variable.
+
+Le mécanisme exploite des **états de marché comparables**, et non une hypothèse d'espacement fixe de 30 minutes ou des paires de fenêtres assurément consécutives. La comparaison multi-échelles et transversale donne au modèle un niveau de référence contextuel pour interpréter la volatilité passée d'une action. Les détails de reproduction et la disponibilité de chaque voisin sur des fenêtres cachées restent à vérifier avec l'inférence finale.
+
 ## Résultats conservés
 
 | Modèle, 112 actions | OOF RMSPE | Holdout RMSPE |
